@@ -1,0 +1,9 @@
+torch>=2.0.0
+tokenizers>=0.15.0
+datasets>=2.14.0
+safetensors>=0.4.0
+numpy>=1.24.0
+tqdm>=4.65.0
+tensorboard>=2.14.0
+gradio>=4.0.0
+pyyaml>=6.0

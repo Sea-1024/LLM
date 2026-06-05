@@ -1,0 +1,12 @@
+vocab_size: 8192
+max_seq_len: 512
+d_model: 768
+n_layers: 8
+n_heads: 12
+d_ff: 3072
+dropout: 0.1
+layer_norm_eps: 1.0e-5
+use_rotary: true
+rope_theta: 10000.0
+activation: gelu
+use_tied_weights: true

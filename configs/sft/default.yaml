@@ -1,0 +1,28 @@
+# SFT default configuration
+# Used by: src/phase5_sft/trainer.py
+
+train_data_path: "sft_data/processed/train.json"
+val_data_path: "sft_data/processed/val.json"
+test_data_path: "sft_data/processed/test.json"
+
+template_type: "alpaca"   # alpaca | chatml | llama
+
+epochs: 3
+batch_size: 4
+gradient_accumulation_steps: 8
+
+learning_rate: 2.0e-5
+min_lr: 2.0e-6
+weight_decay: 0.01
+warmup_ratio: 0.1
+
+max_grad_norm: 1.0
+max_seq_len: 512
+dropout: 0.1
+
+early_stop_patience: 3
+log_interval: 10
+eval_interval: 200
+
+checkpoint_dir: "models/checkpoints/sft"
+log_dir: "output/logs/sft"

@@ -1,0 +1,25 @@
+# ChatML-style conversation template for Supervised Fine-Tuning
+
+template_type: chatml
+system_prompt: "You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe."
+
+# ChatML uses special tokens to delimit conversation turns
+# <|im_start|>role\ncontent<|im_end|>
+prompt_template: |
+  <|im_start|>system
+  {system_prompt}<|im_end|>
+  <|im_start|>user
+  {instruction}
+
+  {input}<|im_end|>
+  <|im_start|>assistant
+  {output}<|im_end|>
+
+# When input is empty
+prompt_template_no_input: |
+  <|im_start|>system
+  {system_prompt}<|im_end|>
+  <|im_start|>user
+  {instruction}<|im_end|>
+  <|im_start|>assistant
+  {output}<|im_end|>

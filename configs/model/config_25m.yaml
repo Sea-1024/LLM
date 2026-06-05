@@ -1,0 +1,33 @@
+# Model configuration for ~25M parameter MiniLLM
+# Based on DESIGN.md section 5.3 parameter estimation:
+#   vocab_size * d_model = 8192 * 512 = 4.2M
+#   n_layers * (4 * d_model^2 + 2 * d_model * d_ff) = 6 * 3.1M = 18.9M
+#   Total: ~23M (with tied weights, LM head shares embedding)
+
+# Vocabulary & Sequence
+vocab_size: 8192
+max_seq_len: 512
+pad_token_id: 0
+bos_token_id: 2
+eos_token_id: 3
+
+# Model dimensions
+d_model: 512
+n_layers: 6
+n_heads: 8
+d_ff: 2048
+head_dim: 64          # d_model // n_heads
+
+# Regularization
+dropout: 0.1
+layer_norm_eps: 1.0e-5
+
+# Position encoding
+use_rotary: true
+rope_theta: 10000.0
+
+# Activation function: "gelu" or "silu" (for SwiGLU)
+activation: "gelu"
+
+# Weight tying
+use_tied_weights: true
