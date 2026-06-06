@@ -1341,9 +1341,7 @@ python tests/test_generate.py
 
 ```bash
 # 使用默认配置启动预训练（25M 参数模型）
-python -m src.phase4_pretrain.trainer \
-    --model_config configs/model/config_25m.yaml \
-    --pretrain_config configs/pretrain/default.yaml
+python -m src.phase4_pretrain.trainer --model_config configs/model/config_25m.yaml --pretrain_config configs/pretrain/default.yaml
 
 # 可选参数:
 #   --resume             从 latest checkpoint 恢复训练

@@ -1,9 +1,9 @@
 # SFT default configuration
 # Used by: src/phase5_sft/trainer.py
 
-train_data_path: "sft_data/processed/train.json"
-val_data_path: "sft_data/processed/val.json"
-test_data_path: "sft_data/processed/test.json"
+train_data_path: "data/sft_data/processed/train.json"
+val_data_path: "data/sft_data/processed/val.json"
+test_data_path: "data/sft_data/processed/test.json"
 
 template_type: "alpaca"   # alpaca | chatml | llama
 

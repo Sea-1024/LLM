@@ -23,9 +23,9 @@ python -m src.phase1_data.preprocess
 python -m src.phase2_tokenizer.train_tokenizer
 python -m src.phase2_tokenizer.tokenize_data
 python -m src.phase4_pretrain.trainer --model_config configs/model/config_25m.yaml --pretrain_config configs/pretrain/default.yaml
-python -m src.phase5_sft.data_prepare
+python -m src.phase5_sft.data_prepare [--parquet_path data/sft_data/raw/alpaca.parquet]
 python -m src.phase5_sft.trainer --model_config configs/model/config_25m.yaml --sft_config configs/sft/default.yaml --pretrained_checkpoint models/checkpoints/pretrain_best.pt
-python -m src.phase5_sft.evaluate
+python -m src.phase5_sft.evaluate --checkpoint models/checkpoints/sft/best.pt
 python -m src.phase6_inference.app --model_config configs/model/config_25m.yaml --model_path output/final/model.safetensors --tokenizer_path models/tokenizer/tokenizer.json
 python -m src.phase6_inference.benchmark --model_config configs/model/config_25m.yaml --model_path output/final/model.safetensors
 ```
@@ -70,7 +70,16 @@ Input (B,S) → Embedding → [LayerNorm → Attention(+RoPE) → Residual → L
 
 所有语料使用 `numpy.memmap` 存储为 `.bin` 文件，避免一次性加载到内存。`src/phase1_data/dataset.py` 定义 `PretrainDataset` + `create_dataloader`。分词器为字节级 BPE，词汇表 8192，使用 HuggingFace `tokenizers` 库训练。
 
-### SFT 损失掩码
+### SFT 数据与损失掩码
+
+SFT 数据统一放在 `data/sft_data/` 下（被 `data/` 的 `.gitignore` 覆盖，无需单独配置）：
+- `data/sft_data/raw/` — 原始数据（`.parquet` 或 `.json`）
+- `data/sft_data/processed/` — 过滤划分后的 train/val/test JSON
+- `data/sft_data/tokenized/` — 分词后二进制文件
+
+`data_prepare.py` 支持两种数据来源：
+1. 从 HuggingFace 在线下载（默认行为）
+2. 通过 `--parquet_path` 从本地 parquet 加载
 
 `src/phase5_sft/loss_mask.py` — SFT 的核心机制：只对 assistant 回复部分计算损失（prompt 部分标签设为 -100）。模板系统（`templates.py`）支持 Alpaca / ChatML / LLaMA 三种格式，通过 `PromptTemplate.format_full()` 区分 prompt 和 response 区域。
 

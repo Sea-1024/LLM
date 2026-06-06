@@ -261,6 +261,7 @@ def main() -> None:
         train_data_path=pretrain_config.train_data_path,
         val_data_path=pretrain_config.val_data_path,
         max_seq_len=model_config.max_seq_len,
+        tokenizer=tokenizer,
     )
     logger.info(f"Train dataset size: {len(train_dataset)} samples")
     logger.info(f"Val dataset size: {len(val_dataset)} samples")

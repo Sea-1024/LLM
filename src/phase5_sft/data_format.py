@@ -174,7 +174,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--data_path", type=str, required=True,
-        help="Path to JSON data file (e.g. sft_data/processed/train.json)."
+        help="Path to JSON data file (e.g. data/sft_data/processed/train.json)."
     )
     parser.add_argument(
         "--output_dir", type=str, required=True,

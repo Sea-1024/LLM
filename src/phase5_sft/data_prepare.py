@@ -173,6 +173,36 @@ def split_dataset(
 # Main entry-point
 # ---------------------------------------------------------------------------
 
+def load_from_parquet(parquet_path: str) -> list[dict[str, str]]:
+    """
+    Load Alpaca-format data from a local parquet file.
+
+    Args:
+        parquet_path: Path to the .parquet file.
+
+    Returns:
+        List of samples (dicts with instruction / input / output).
+    """
+    try:
+        import pandas as pd
+    except ImportError:
+        raise ImportError(
+            "Please install pandas: pip install pandas"
+        )
+
+    print(f"[data_prepare] Loading from parquet: {parquet_path}")
+    df = pd.read_parquet(parquet_path)
+    samples: list[dict[str, str]] = []
+    for _, row in df.iterrows():
+        samples.append({
+            "instruction": str(row.get("instruction", "") or ""),
+            "input": str(row.get("input", "") or ""),
+            "output": str(row.get("output", "") or ""),
+        })
+    print(f"[data_prepare] Loaded {len(samples)} samples from parquet")
+    return samples
+
+
 def main() -> None:
     """Download, filter, split, and save the Alpaca dataset."""
     import argparse
@@ -183,12 +213,16 @@ def main() -> None:
         help="Maximum samples to download."
     )
     parser.add_argument(
-        "--output_dir", type=str, default="sft_data/processed",
+        "--output_dir", type=str, default="data/sft_data/processed",
         help="Directory to save train/val/test JSON files."
     )
     parser.add_argument(
-        "--raw_path", type=str, default="sft_data/raw/alpaca.json",
-        help="Path to save the raw downloaded dataset."
+        "--raw_path", type=str, default="data/sft_data/raw/alpaca.json",
+        help="Path to save the raw downloaded dataset (JSON)."
+    )
+    parser.add_argument(
+        "--parquet_path", type=str, default=None,
+        help="Optional: load data from a local parquet file instead of downloading."
     )
     parser.add_argument(
         "--seed", type=int, default=42, help="Random seed for splitting."
@@ -201,8 +235,14 @@ def main() -> None:
     raw_dir = Path(args.raw_path).parent
     raw_dir.mkdir(parents=True, exist_ok=True)
 
-    # 1. Download
-    if Path(args.raw_path).exists():
+    # 1. Load data
+    if args.parquet_path:
+        # Load from local parquet file
+        samples = load_from_parquet(args.parquet_path)
+        if args.max_samples and len(samples) > args.max_samples:
+            samples = samples[:args.max_samples]
+            print(f"[data_prepare] Truncated to {args.max_samples} samples")
+    elif Path(args.raw_path).exists():
         print(f"[data_prepare] Loading cached raw data from {args.raw_path}")
         with open(args.raw_path, "r", encoding="utf-8") as f:
             samples = json.load(f)

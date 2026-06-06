@@ -118,8 +118,8 @@ class SFTConfig:
     """Configuration for Supervised Fine-Tuning."""
 
     # Data
-    train_data_path: str = "sft_data/tokenized/train_sft.bin"
-    val_data_path: str = "sft_data/tokenized/val_sft.bin"
+    train_data_path: str = "data/sft_data/tokenized/train_sft.bin"
+    val_data_path: str = "data/sft_data/tokenized/val_sft.bin"
     template_type: Literal["alpaca", "chatml", "llama"] = "alpaca"
 
     # Training

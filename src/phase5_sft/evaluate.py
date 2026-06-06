@@ -393,7 +393,7 @@ def main() -> None:
         help="Path to SFT model checkpoint."
     )
     parser.add_argument(
-        "--test_data", type=str, default="sft_data/processed/test.json",
+        "--test_data", type=str, default="data/sft_data/processed/test.json",
         help="Path to test JSON data."
     )
     parser.add_argument(

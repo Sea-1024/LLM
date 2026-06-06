@@ -180,3 +180,33 @@ def create_dataloader(
         len(dataloader),
     )
     return dataloader
+
+
+def create_pretrain_datasets(
+    train_data_path: str,
+    val_data_path: str,
+    max_seq_len: int,
+    tokenizer: object,
+) -> Tuple[PretrainDataset, PretrainDataset]:
+    """Create train and validation PretrainDataset instances.
+
+    Args:
+        train_data_path: Path to training .bin file.
+        val_data_path: Path to validation .bin file.
+        max_seq_len: Sequence length for training.
+        tokenizer: Tokenizer object for pad_token_id resolution.
+
+    Returns:
+        Tuple of (train_dataset, val_dataset).
+    """
+    train_dataset = PretrainDataset(
+        data_path=train_data_path,
+        seq_len=max_seq_len,
+        tokenizer=tokenizer,
+    )
+    val_dataset = PretrainDataset(
+        data_path=val_data_path,
+        seq_len=max_seq_len,
+        tokenizer=tokenizer,
+    )
+    return train_dataset, val_dataset
