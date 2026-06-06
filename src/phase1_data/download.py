@@ -29,7 +29,7 @@ def _get_hf_token() -> str:
     if token:
         return token
     if _DATA_CONFIG is None:
-        config_path = Path("config/data.yaml")
+        config_path = Path("configs/data/data.yaml")
         if config_path.exists():
             _DATA_CONFIG = DataConfig.from_yaml(str(config_path))
         else:
