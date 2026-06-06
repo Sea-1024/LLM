@@ -40,5 +40,8 @@ Thumbs.db
 .env
 .env.local
 
+# Config with secrets
+config/data.yaml
+
 # Python type stubs
 .mypy_cache/

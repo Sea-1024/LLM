@@ -14,8 +14,27 @@ from tqdm import tqdm
 from datasets import load_dataset, DownloadConfig
 
 from src.common.utils import ensure_dir, setup_logging
+from src.common.config import DataConfig
 
 logger = logging.getLogger("download")
+
+# Load Hugging Face token from config; fallback to environment variable
+_DATA_CONFIG: Optional[DataConfig] = None
+
+
+def _get_hf_token() -> str:
+    """Get Hugging Face token from config file, or fallback to env."""
+    global _DATA_CONFIG
+    token = os.environ.get("HF_TOKEN", "")
+    if token:
+        return token
+    if _DATA_CONFIG is None:
+        config_path = Path("config/data.yaml")
+        if config_path.exists():
+            _DATA_CONFIG = DataConfig.from_yaml(str(config_path))
+        else:
+            _DATA_CONFIG = DataConfig()
+    return _DATA_CONFIG.hf_token
 
 
 def download_wikitext(
@@ -47,6 +66,7 @@ def download_wikitext(
                 "Salesforce/wikitext",
                 "wikitext-103-raw-v1",
                 split=split,
+                download_config=DownloadConfig(token=_get_hf_token()),
             )
 
             # Save each article as a separate text file
@@ -111,6 +131,7 @@ def download_tinystories(
                 dataset = load_dataset(
                     "roneneldan/TinyStories",
                     split=split_name,
+                    download_config=DownloadConfig(token=_get_hf_token()),
                 )
 
                 texts = []
