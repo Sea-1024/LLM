@@ -44,10 +44,9 @@ def download_wikitext(
         try:
             logger.info("  Attempt %d/%d", attempt, max_retries)
             dataset = load_dataset(
-                "wikitext",
+                "Salesforce/wikitext",
                 "wikitext-103-raw-v1",
                 split=split,
-                trust_remote_code=True,
             )
 
             # Save each article as a separate text file
@@ -112,7 +111,6 @@ def download_tinystories(
                 dataset = load_dataset(
                     "roneneldan/TinyStories",
                     split=split_name,
-                    trust_remote_code=True,
                 )
 
                 texts = []
