@@ -28,8 +28,7 @@ from torch.utils.data import DataLoader
 
 # Project imports -- these modules must exist before running this script
 from src.common.config import MiniLLMConfig, PretrainConfig
-from src.common.logging_utils import setup_logging
-from src.common.utils import set_seed
+from src.common.utils import set_seed, setup_logging
 from src.phase3_model.model import MiniLLM
 from src.phase1_data.dataset import create_pretrain_datasets
 from src.phase4_pretrain.metrics import (
@@ -202,7 +201,7 @@ def main() -> None:
     os.makedirs(pretrain_config.log_dir, exist_ok=True)
     os.makedirs(pretrain_config.checkpoint_dir, exist_ok=True)
 
-    logger = setup_logging(pretrain_config.log_dir, "pretrain")
+    logger = setup_logging("pretrain", pretrain_config.log_dir)
 
     logger.info("=" * 60)
     logger.info("Phase 4: Pretraining")

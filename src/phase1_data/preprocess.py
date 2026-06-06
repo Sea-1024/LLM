@@ -319,7 +319,7 @@ def build_corpus(
 
 def main() -> None:
     """Run the full preprocessing pipeline."""
-    logger = setup_logging("preprocess", "logs")
+    logger = setup_logging("preprocess", "logs/preprocess")
 
     logger.info("=" * 60)
     logger.info("Phase 1: Preprocessing Pipeline")

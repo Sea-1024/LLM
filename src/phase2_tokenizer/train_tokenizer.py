@@ -143,7 +143,7 @@ def train_tokenizer(
 
 def main() -> None:
     """Train the BPE tokenizer with default settings."""
-    logger = setup_logging("train_tokenizer", "logs")
+    logger = setup_logging("train_tokenizer", "logs/train_tokenizer")
 
     try:
         tokenizer = train_tokenizer(

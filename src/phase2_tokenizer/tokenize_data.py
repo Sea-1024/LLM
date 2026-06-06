@@ -259,7 +259,7 @@ def load_tokenizer(tokenizer_path: str = "models/tokenizer/tokenizer.json") -> o
 
 def main() -> None:
     """Run batch tokenization with default paths."""
-    logger = setup_logging("tokenize_data", "logs")
+    logger = setup_logging("tokenize_data", "logs/tokenize_data")
 
     try:
         # Load tokenizer

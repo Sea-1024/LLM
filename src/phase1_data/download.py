@@ -15,7 +15,7 @@ from datasets import load_dataset, DownloadConfig
 
 from src.common.utils import ensure_dir, setup_logging
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("download")
 
 
 def download_wikitext(
@@ -149,7 +149,7 @@ def download_tinystories(
 
 def main() -> None:
     """Download both pretraining datasets."""
-    logger = setup_logging("download", "logs")
+    logger = setup_logging("download", "logs/download")
 
     logger.info("=" * 60)
     logger.info("Phase 1: Downloading Pretraining Datasets")
