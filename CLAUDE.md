@@ -1,0 +1,82 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## 项目概述
+
+MiniLLM — 从零训练 GPT-like 解码器专用 Transformer 的教学项目。纯 CPU 可运行（8GB+ RAM），参数量 10M-50M。技术栈：PyTorch + HuggingFace Tokenizers + Gradio + TensorBoard。
+
+## 常用命令
+
+```bash
+# 环境初始化
+python -m venv venv && source venv/bin/activate && pip install -r requirements.txt
+
+# 运行测试（所有测试直接 python 执行，无 pytest）
+python tests/test_model.py          # 9 个模型组件测试
+python tests/test_generate.py       # 6 个生成策略测试
+python tests/test_loss_mask.py      # 5 个 SFT 损失掩码测试
+
+# 手动运行各阶段（shell 脚本缺少 CLI 参数，需手动传参）
+python -m src.phase1_data.download
+python -m src.phase1_data.preprocess
+python -m src.phase2_tokenizer.train_tokenizer
+python -m src.phase2_tokenizer.tokenize_data
+python -m src.phase4_pretrain.trainer --model_config configs/model/config_25m.yaml --pretrain_config configs/pretrain/default.yaml
+python -m src.phase5_sft.data_prepare
+python -m src.phase5_sft.trainer --model_config configs/model/config_25m.yaml --sft_config configs/sft/default.yaml --pretrained_checkpoint models/checkpoints/pretrain_best.pt
+python -m src.phase5_sft.evaluate
+python -m src.phase6_inference.app --model_config configs/model/config_25m.yaml --model_path output/final/model.safetensors --tokenizer_path models/tokenizer/tokenizer.json
+python -m src.phase6_inference.benchmark --model_config configs/model/config_25m.yaml --model_path output/final/model.safetensors
+```
+
+## 核心架构
+
+### 六阶段流水线
+
+```
+phase1_data → phase2_tokenizer → phase3_model → phase4_pretrain → phase5_sft → phase6_inference
+```
+
+各阶段在 `src/` 下是独立 Python 包，通过 `src/common/` 共享配置和工具。阶段间依赖：
+- `phase4_pretrain` 依赖 `phase3_model` + `phase1_data`
+- `phase5_sft` 依赖 `phase3_model`
+- `phase6_inference` 依赖 `phase3_model`
+
+### 模型架构（Pre-LN Transformer）
+
+```
+Input (B,S) → Embedding → [LayerNorm → Attention(+RoPE) → Residual → LayerNorm → FFN → Residual] × N → Final LayerNorm → LM Head → (B,S,vocab_size)
+```
+
+关键设计决策：
+- **Pre-LN** 架构（`src/phase3_model/transformer_block.py`）
+- **RoPE** 位置编码（`src/phase3_model/rotary.py`），GPT-NeoX 风格配对旋转
+- **权重绑定**（`TiedLinear`）：LM Head 与 Token Embedding 共享权重
+- **FFN 激活**可选 GELU / SiLU / SwiGLU（`feedforward.py`）
+- 注意力使用**组合 QKV 投影**（单次 Linear 投影后 split）
+
+### 配置系统
+
+所有配置通过 `src/common/config.py` 中 4 个 `@dataclass` 管理，均支持 `from_yaml(path)` 工厂方法和 `to_dict()`：
+- `DataConfig` — HuggingFace token
+- `MiniLLMConfig` — 模型超参数，`__post_init__` 强制 `d_model % n_heads == 0`
+- `PretrainConfig` — 预训练超参数（warmup + cosine LR schedule）
+- `SFTConfig` — SFT 超参数（warmup ratio + 早停）
+
+配置文件位于 `configs/{model,pretrain,sft}/`，`config_25m.yaml` 为推荐默认。
+
+### 数据处理
+
+所有语料使用 `numpy.memmap` 存储为 `.bin` 文件，避免一次性加载到内存。`src/phase1_data/dataset.py` 定义 `PretrainDataset` + `create_dataloader`。分词器为字节级 BPE，词汇表 8192，使用 HuggingFace `tokenizers` 库训练。
+
+### SFT 损失掩码
+
+`src/phase5_sft/loss_mask.py` — SFT 的核心机制：只对 assistant 回复部分计算损失（prompt 部分标签设为 -100）。模板系统（`templates.py`）支持 Alpaca / ChatML / LLaMA 三种格式，通过 `PromptTemplate.format_full()` 区分 prompt 和 response 区域。
+
+## 注意事项
+
+- **Shell 脚本是占位符**：`scripts/*.sh` 缺少所需的 CLI 参数，不能直接运行。请使用上述手动 `python -m` 命令。
+- **无 Makefile / pytest**：项目仅使用直接 `python` 调用，测试文件需从项目根目录运行。
+- **部分功能未实现**：`create_pretrain_datasets` 函数在 `trainer.py` 中被引用但 `dataset.py` 中未定义；`scripts/run_phase3_test.sh` 和 `scripts/run_pipeline.sh` 在 DESIGN.md 中提及但不存在。
+- 项目是教学导向的，所有训练循环均手写（无 HuggingFace Trainer 封装），以透明展示每个步骤。
