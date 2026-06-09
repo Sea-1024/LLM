@@ -60,11 +60,11 @@ python -m src.phase5_sft.evaluate \
 # Phase 6: 推理
 python -m src.phase6_inference.app \
     --model_config configs/model/config_25m.yaml \
-    --model_path models/final/model.safetensors \
+    --model_path models/sft_checkpoints/sft_final.pt \
     --tokenizer_path models/tokenizer/tokenizer.json
 python -m src.phase6_inference.benchmark \
     --model_config configs/model/config_25m.yaml \
-    --model_path models/final/model.safetensors
+    --model_path models/sft_checkpoints/sft_final.pt
 
 # SFT 迭代分析工具
 python -m src.phase5_sft.iteration diversity --data_path data/sft_data/processed/train.json
