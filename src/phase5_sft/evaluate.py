@@ -125,6 +125,10 @@ def evaluate_sft_model(
             generated_ids = generated_ids.tolist()
 
         # If model.generate returns the full sequence, slice out the prompt
+        # model.generate returns 2D [batch, seq]; this eval loop uses batch_size=1
+        if isinstance(generated_ids, list) and len(generated_ids) == 1 and isinstance(generated_ids[0], list):
+            generated_ids = generated_ids[0]
+
         if len(generated_ids) > len(prompt_ids):
             # Check if the prompt is a prefix
             new_ids = generated_ids[len(prompt_ids):]
@@ -401,7 +405,7 @@ def main() -> None:
         choices=["alpaca", "chatml", "llama"],
     )
     parser.add_argument(
-        "--output_dir", type=str, default="output/reports",
+        "--output_dir", type=str, default="reports",
         help="Directory for output reports."
     )
     parser.add_argument(

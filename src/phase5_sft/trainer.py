@@ -480,6 +480,12 @@ def main() -> None:
         "--skip_data_prep", action="store_true",
         help="Skip tokenization (use pre-tokenized binary data)."
     )
+    parser.add_argument(
+        "--tokenizer_path", type=str, default=None,
+        help="Path to tokenizer file (.json or .pkl). "
+             "Defaults to models/tokenizer/tokenizer.json, "
+             "then falls back to tokenizer.pkl next to checkpoint."
+    )
     args = parser.parse_args()
 
     # ------------------------------------------------------------------
@@ -505,22 +511,42 @@ def main() -> None:
 
     try:
         # ------------------------------------------------------------------
-        # Load tokenizer (from pretrained checkpoint directory)
         # ------------------------------------------------------------------
-        # Tokenizer loading -- adjust based on how the tokenizer is saved.
+        # Load tokenizer
+        # ------------------------------------------------------------------
         ckpt_dir = os.path.dirname(args.pretrained_checkpoint)
-        tokenizer_path = os.path.join(ckpt_dir, "tokenizer.pkl")
         tokenizer = None
-        if os.path.exists(tokenizer_path):
-            import pickle
-            with open(tokenizer_path, "rb") as f:
-                tokenizer = pickle.load(f)
-            logger.log(f"Loaded tokenizer from {tokenizer_path}")
+
+        # Determine tokenizer path(s) to try
+        candidates: list[str] = []
+        if args.tokenizer_path:
+            candidates.append(args.tokenizer_path)
         else:
-            logger.log(
-                "[trainer] WARNING: tokenizer not found, will try to load "
-                "from model attribute."
-            )
+            # Default: HuggingFace JSON format
+            candidates.append("models/tokenizer/tokenizer.json")
+            # Fallback: pickle format next to checkpoint
+            candidates.append(os.path.join(ckpt_dir, "tokenizer.pkl"))
+
+        for tok_path in candidates:
+            if not os.path.exists(tok_path):
+                continue
+            if tok_path.endswith(".json"):
+                try:
+                    from tokenizers import Tokenizer
+                    tokenizer = Tokenizer.from_file(tok_path)
+                    logger.log(f"Loaded tokenizer from {tok_path} "
+                               f"(vocab={tokenizer.get_vocab_size()})")
+                    break
+                except ImportError:
+                    logger.log("tokenizers library not available, "
+                               "trying next candidate...")
+                    continue
+            elif tok_path.endswith(".pkl"):
+                import pickle
+                with open(tok_path, "rb") as f:
+                    tokenizer = pickle.load(f)
+                logger.log(f"Loaded tokenizer from {tok_path}")
+                break
 
         # ------------------------------------------------------------------
         # Prepare data (tokenize if needed)
@@ -538,8 +564,8 @@ def main() -> None:
             if tokenizer is None:
                 raise RuntimeError(
                     "Tokenizer is required for data preparation. "
-                    "Provide --tokenizer_path or place tokenizer.pkl "
-                    "next to the checkpoint."
+                    "Provide --tokenizer_path or ensure "
+                    "models/tokenizer/tokenizer.json exists."
                 )
 
             logger.log("Tokenizing training data...")

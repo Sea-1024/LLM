@@ -131,7 +131,7 @@ def main() -> None:
     Usage:
         python -m src.phase6_inference.benchmark \
             --model_config configs/model/config_25m.yaml \
-            --model_path output/final/model.safetensors \
+            --model_path models/final/model.safetensors \
             --tokenizer_path models/tokenizer/tokenizer.json
     """
     import argparse
@@ -143,7 +143,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--model_path",
-        default="output/final/model.safetensors",
+        default="models/final/model.safetensors",
         help="Path to safetensors model weights",
     )
     parser.add_argument(

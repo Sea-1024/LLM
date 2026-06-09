@@ -3,26 +3,6 @@ from typing import Optional, Literal
 
 
 @dataclass
-class DataConfig:
-    """Configuration for data downloading."""
-
-    # Hugging Face
-    hf_token: str = ""
-
-    @classmethod
-    def from_yaml(cls, path: str) -> "DataConfig":
-        import yaml
-
-        with open(path, "r") as f:
-            data = yaml.safe_load(f)
-        valid_fields = set(cls.__dataclass_fields__.keys())
-        return cls(**{k: v for k, v in data.items() if k in valid_fields})
-
-    def to_dict(self) -> dict:
-        return {k: v for k, v in self.__dict__.items()}
-
-
-@dataclass
 class MiniLLMConfig:
     """Configuration for MiniLLM model."""
 

@@ -143,14 +143,17 @@ def _encode(tokenizer: Any, text: str) -> list[int]:
 
     if hasattr(tokenizer, "encode"):
         result = tokenizer.encode(text)
-        # Handle both list and tensor returns
+        # tokenizers.Tokenizer returns an Encoding object with .ids
+        if hasattr(result, "ids"):
+            return [int(t) for t in result.ids]
+        # Handle tensor returns (e.g. torch.Tensor)
         if hasattr(result, "tolist"):
             result = result.tolist()
         if isinstance(result, list):
             return [int(t) for t in result]
         return [int(result)]
 
-    # Fallback: call as callable
+    # Fallback: call as callable (e.g. HuggingFace transformers tokenizer)
     result = tokenizer(text)
     if hasattr(result, "input_ids"):
         result = result.input_ids
