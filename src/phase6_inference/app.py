@@ -3,17 +3,22 @@ Gradio web interface for MiniLLM chat.
 
 Provides an interactive chat UI with adjustable generation parameters
 (temperature, top-k, top-p, max tokens).
+
+Usage:
+    python -m src.phase6_inference.app \
+        --model_config configs/model/config_25m.yaml \
+        --model_path models/checkpoints/pretrain_best.pt
 """
 import argparse
 import gradio as gr
 import torch
-from safetensors.torch import load_file
-from typing import List, Tuple, Optional
+from typing import List, Dict, Optional
 
 from src.common.config import MiniLLMConfig
 from src.phase3_model.model import MiniLLM
 from src.common.utils import load_tokenizer
 from src.phase6_inference.generate import TextGenerator
+from src.phase5_sft.templates import PromptTemplate
 
 # Global reference to the generator (set at startup)
 _generator: Optional[TextGenerator] = None
@@ -24,21 +29,16 @@ def load_model(
     model_path: str,
     tokenizer_path: str,
 ) -> TextGenerator:
-    """
-    Load model weights and tokenizer, then create a TextGenerator.
-
-    Args:
-        model_config_path: Path to YAML model config.
-        model_path: Path to safetensors weights.
-        tokenizer_path: Path to tokenizer.json.
-
-    Returns:
-        Configured TextGenerator instance.
-    """
+    """Load model weights and tokenizer, then create a TextGenerator."""
     config = MiniLLMConfig.from_yaml(model_config_path)
     model = MiniLLM(config)
-    state_dict = load_file(model_path)
-    model.load_state_dict(state_dict)
+    if model_path.endswith(".safetensors"):
+        from safetensors.torch import load_file
+        state_dict = load_file(model_path)
+    else:
+        ckpt = torch.load(model_path, map_location="cpu", weights_only=False)
+        state_dict = ckpt.get("model_state_dict", ckpt.get("state_dict", ckpt))
+    model.load_state_dict(state_dict, strict=False)
     model.eval()
     tokenizer = load_tokenizer(tokenizer_path)
     return TextGenerator(model, tokenizer)
@@ -46,61 +46,59 @@ def load_model(
 
 def chat_fn(
     message: str,
-    history: List[Tuple[str, str]],
+    history: List[Dict[str, str]],
     temperature: float,
-    top_k: float,
+    top_k: int,
     top_p: float,
-    max_tokens: float,
+    max_tokens: int,
 ) -> str:
     """
-    Gradio chat callback function.
-
-    Builds conversation context from history, generates a response,
-    and returns the generated text for the chatbot display.
+    Build an Alpaca-format prompt and generate a response.
 
     Args:
         message: The latest user message.
-        history: List of (user_msg, assistant_msg) tuples.
+        history: Previous messages in Gradio 6.x format.
         temperature: Sampling temperature.
         top_k: Top-K filter.
         top_p: Top-P (nucleus) filter.
         max_tokens: Maximum tokens to generate.
 
     Returns:
-        The assistant's generated response as a string.
+        Generated response string.
     """
     global _generator
     if _generator is None:
-        return "Error: Model not loaded. Please restart the application."
+        return "Error: Model not loaded."
 
-    # Build conversation context from the last 3 turns
-    context = ""
-    for turn in history[-3:]:
-        context += f"User: {turn[0]}\nAssistant: {turn[1]}\n"
-    context += f"User: {message}\nAssistant:"
+    # Build multi-turn context as Alpaca "input" field
+    input_text = ""
+    recent = history[-6:]  # up to 3 turns
+    for msg in recent:
+        role_label = "User" if msg["role"] == "user" else "Assistant"
+        input_text += f"{role_label}: {msg['content']}\n"
+
+    template = PromptTemplate("alpaca")
+    prompt, _ = template.format_instruction(
+        instruction=message,
+        input_text=input_text.strip(),
+    )
 
     result = _generator.generate(
-        context,
-        max_new_tokens=int(max_tokens),
+        prompt,
+        max_new_tokens=max_tokens,
         temperature=temperature,
-        top_k=int(top_k),
+        top_k=top_k,
         top_p=top_p,
     )
 
-    return result["text"].strip()
+    response = result["text"].strip()
+    if not response:
+        response = "(model generated empty response)"
+    return response
 
 
 def main() -> None:
-    """
-    Entry point: loads the model and launches the Gradio web UI.
-
-    Usage:
-        python -m src.phase6_inference.app \
-            --model_config configs/model/config_25m.yaml \
-            --model_path models/final/model.safetensors \
-            --tokenizer_path models/tokenizer/tokenizer.json \
-            --port 7860
-    """
+    """Entry point: loads the model and launches the Gradio web UI."""
     parser = argparse.ArgumentParser(description="MiniLLM Chat Demo")
     parser.add_argument(
         "--model_config",
@@ -109,8 +107,8 @@ def main() -> None:
     )
     parser.add_argument(
         "--model_path",
-        default="models/final/model.safetensors",
-        help="Path to safetensors model weights",
+        default="models/checkpoints/pretrain_best.pt",
+        help="Path to model checkpoint",
     )
     parser.add_argument(
         "--tokenizer_path",
@@ -135,8 +133,8 @@ def main() -> None:
     _generator = load_model(args.model_config, args.model_path, args.tokenizer_path)
     print("Model loaded successfully!")
 
-    # Build Gradio interface
-    with gr.Blocks(title="MiniLLM Chat", theme=gr.themes.Soft()) as demo:
+    # Build Gradio interface with parameter sliders
+    with gr.Blocks(title="MiniLLM Chat") as demo:
         gr.Markdown("# MiniLLM Chat")
         gr.Markdown("A small language model trained from scratch on CPU.")
 
@@ -165,11 +163,13 @@ def main() -> None:
 
         # ---- Event handlers ----
         def _respond(message, chatbot_history, temp, t_k, t_p, m_tok):
-            # Append user message to history
-            chatbot_history.append((message, ""))
-            response = chat_fn(message, chatbot_history[:-1], temp, t_k, t_p, m_tok)
-            # Update the last entry with the assistant response
-            chatbot_history[-1] = (message, response)
+            """Handle one turn: append user msg, generate, append assistant msg."""
+            chatbot_history.append({"role": "user", "content": message})
+            response = chat_fn(
+                message, chatbot_history[:-1],
+                float(temp), int(t_k), float(t_p), int(m_tok),
+            )
+            chatbot_history.append({"role": "assistant", "content": response})
             return chatbot_history
 
         submit_btn.click(

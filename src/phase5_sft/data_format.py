@@ -84,9 +84,14 @@ def format_and_tokenize(
         # 2. Build the full text
         full_str = template.format_full(instruction, input_text, output_text)
 
-        # 3. Tokenize
-        prompt_ids = _encode(tokenizer, prompt_str)
-        full_ids = _encode(tokenizer, full_str)
+        # 3. Tokenize (without post-processor to avoid EOS between prompt & response)
+        prompt_ids = _encode(tokenizer, prompt_str, add_special_tokens=False)
+        full_ids = _encode(tokenizer, full_str, add_special_tokens=False)
+
+        # Manually append EOS at the very end so the model learns to stop
+        eos_id = _get_eos_id(tokenizer)
+        if eos_id is not None:
+            full_ids.append(eos_id)
 
         # Truncate
         full_ids = full_ids[:max_seq_len]
@@ -136,13 +141,13 @@ def format_and_tokenize(
     return idx
 
 
-def _encode(tokenizer: Any, text: str) -> list[int]:
+def _encode(tokenizer: Any, text: str, add_special_tokens: bool = True) -> list[int]:
     """Encode text to token ids, handling different tokenizer interfaces."""
     if text is None or not text:
         return []
 
     if hasattr(tokenizer, "encode"):
-        result = tokenizer.encode(text)
+        result = tokenizer.encode(text, add_special_tokens=add_special_tokens)
         # tokenizers.Tokenizer returns an Encoding object with .ids
         if hasattr(result, "ids"):
             return [int(t) for t in result.ids]
@@ -162,6 +167,15 @@ def _encode(tokenizer: Any, text: str) -> list[int]:
     if isinstance(result, list):
         return [int(t) for t in result]
     return [int(result)]
+
+
+def _get_eos_id(tokenizer: Any) -> Optional[int]:
+    """Get the EOS token ID from a tokenizer, handling different interfaces."""
+    if hasattr(tokenizer, "token_to_id"):
+        return tokenizer.token_to_id("<EOS>")
+    if hasattr(tokenizer, "eos_token_id"):
+        return tokenizer.eos_token_id
+    return None
 
 
 # ---------------------------------------------------------------------------

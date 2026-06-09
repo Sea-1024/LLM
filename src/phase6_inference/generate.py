@@ -40,6 +40,15 @@ class TextGenerator:
         self.pad_token_id = (
             tokenizer.token_to_id("<PAD>") or getattr(model.config, "pad_token_id", None)
         )
+        self.unk_token_id = (
+            tokenizer.token_to_id("<UNK>") or getattr(model.config, "unk_token_id", None)
+        )
+
+        # Token IDs that should never be generated (always suppressed)
+        self._forbidden_ids: set[int] = set()
+        for tid in (self.pad_token_id, self.bos_token_id, self.unk_token_id):
+            if tid is not None:
+                self._forbidden_ids.add(tid)
 
     @torch.no_grad()
     def generate(
@@ -78,7 +87,7 @@ class TextGenerator:
         # ========================
         # 1. Encode the prompt
         # ========================
-        encoded = self.tokenizer.encode(prompt)
+        encoded = self.tokenizer.encode(prompt, add_special_tokens=False)
         input_ids = torch.tensor([encoded.ids], dtype=torch.long, device=next(self.model.parameters()).device)
 
         generated_ids: List[int] = []
@@ -142,6 +151,10 @@ class TextGenerator:
                 # Scatter mask back to original order
                 indices_to_remove = sorted_mask.scatter(1, sorted_indices, sorted_mask)
                 next_logits[indices_to_remove] = float("-inf")
+
+            # ---- Suppress forbidden tokens (PAD, BOS, UNK should never be generated) ----
+            for tid in self._forbidden_ids:
+                next_logits[0, tid] = float("-inf")
 
             # ---- Sampling ----
             if do_sample:

@@ -206,7 +206,7 @@ class _Logger:
         os.makedirs(log_dir, exist_ok=True)
         self.log_path = os.path.join(log_dir, f"{name}.log")
         self.metrics_path = os.path.join(log_dir, f"{name}_metrics.jsonl")
-        self.file_handle = open(self.log_path, "w", encoding="utf-8")
+        self.file_handle = open(self.log_path, "a", encoding="utf-8")
 
     def log(self, msg: str) -> None:
         timestamp = time.strftime("%Y-%m-%d %H:%M:%S")

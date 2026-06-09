@@ -124,6 +124,22 @@ def print_benchmark_report(benchmark_result: Dict[str, Any]) -> None:
     print("=" * 50)
 
 
+def _load_model_weights(model: torch.nn.Module, path: str) -> None:
+    """Load model weights from safetensors or PyTorch checkpoint.
+
+    Args:
+        model: The MiniLLM model instance.
+        path: Path to .safetensors or .pt checkpoint file.
+    """
+    if path.endswith(".safetensors"):
+        from safetensors.torch import load_file
+        state_dict = load_file(path)
+    else:
+        ckpt = torch.load(path, map_location="cpu", weights_only=False)
+        state_dict = ckpt.get("model_state_dict", ckpt.get("state_dict", ckpt))
+    model.load_state_dict(state_dict, strict=False)
+
+
 def main() -> None:
     """
     Entry point: loads model, runs benchmark, prints report.
@@ -156,15 +172,13 @@ def main() -> None:
     from src.common.config import MiniLLMConfig
     from src.phase3_model.model import MiniLLM
     from src.common.utils import load_tokenizer
-    from safetensors.torch import load_file
 
     print("Loading model configuration...")
     config = MiniLLMConfig.from_yaml(args.model_config)
 
     print("Loading model weights...")
     model = MiniLLM(config)
-    state_dict = load_file(args.model_path)
-    model.load_state_dict(state_dict)
+    _load_model_weights(model, args.model_path)
     model.eval()
 
     print("Loading tokenizer...")

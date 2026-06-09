@@ -329,9 +329,14 @@ def _encode(tokenizer: Any, text: str) -> list[int]:
         result = tokenizer.encode(text)
     else:
         result = tokenizer(text).input_ids
+    # HuggingFace tokenizers returns an Encoding object with .ids
+    if hasattr(result, "ids"):
+        return [int(t) for t in result.ids]
     if hasattr(result, "tolist"):
         return result.tolist()
-    return list(result)
+    if isinstance(result, list):
+        return [int(t) for t in result]
+    return [int(result)]
 
 
 def _decode(tokenizer: Any, ids: list[int]) -> str:
@@ -415,6 +420,11 @@ def main() -> None:
         "--device", type=str, default="auto",
     )
     parser.add_argument(
+        "--tokenizer_path", type=str, default=None,
+        help="Path to tokenizer file (.json). "
+             "Defaults to models/tokenizer/tokenizer.json."
+    )
+    parser.add_argument(
         "--compare_base_checkpoint", type=str, default=None,
         help="Optional: path to base (pretrained) checkpoint for comparison."
     )
@@ -446,21 +456,44 @@ def main() -> None:
 
     # Tokenizer
     ckpt_dir = os.path.dirname(args.checkpoint)
-    tokenizer_path = os.path.join(ckpt_dir, "tokenizer.pkl")
     tokenizer = None
-    if os.path.exists(tokenizer_path):
-        import pickle
-        with open(tokenizer_path, "rb") as f:
-            tokenizer = pickle.load(f)
-        print(f"[evaluate] Loaded tokenizer from {tokenizer_path}")
+
+    # Determine tokenizer path(s) to try
+    candidates: list[str] = []
+    if args.tokenizer_path:
+        candidates.append(args.tokenizer_path)
     else:
-        # Fallback: dummy tokenizer for testing
-        class _DummyTok:
-            eos_token_id = 2
-            def encode(self, t): return [ord(c) % 30000 for c in t]
-            def decode(self, ids): return "".join(chr(i % 256) for i in ids)
-        tokenizer = _DummyTok()
-        print("[evaluate] WARNING: using dummy tokenizer")
+        # Default: HuggingFace JSON format
+        candidates.append("models/tokenizer/tokenizer.json")
+        # Fallback: pickle format next to checkpoint
+        candidates.append(os.path.join(ckpt_dir, "tokenizer.pkl"))
+
+    for tok_path in candidates:
+        if not os.path.exists(tok_path):
+            continue
+        if tok_path.endswith(".json"):
+            try:
+                from tokenizers import Tokenizer
+                tokenizer = Tokenizer.from_file(tok_path)
+                print(f"[evaluate] Loaded tokenizer from {tok_path} "
+                      f"(vocab={tokenizer.get_vocab_size()})")
+                break
+            except ImportError:
+                print("[evaluate] tokenizers library not available, "
+                      "trying next candidate...")
+                continue
+        elif tok_path.endswith(".pkl"):
+            import pickle
+            with open(tok_path, "rb") as f:
+                tokenizer = pickle.load(f)
+            print(f"[evaluate] Loaded tokenizer from {tok_path}")
+            break
+
+    if tokenizer is None:
+        raise RuntimeError(
+            "Tokenizer not found. Provide --tokenizer_path or ensure "
+            "models/tokenizer/tokenizer.json exists."
+        )
 
     # Output dir
     os.makedirs(args.output_dir, exist_ok=True)
